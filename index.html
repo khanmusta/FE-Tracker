@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FE Chemical — 10-Week Protocol</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -11,6 +17,7 @@
     --sans:'IBM Plex Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box}
+  html,body{margin:0; background:#0d1117}
   #fe-app{
     font-family:var(--sans); color:var(--ink);
     background:
@@ -18,7 +25,7 @@
       repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(255,255,255,.018) 31px,rgba(255,255,255,.018) 32px),
       repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(255,255,255,.018) 31px,rgba(255,255,255,.018) 32px);
     background-color:var(--bg);
-    padding:28px 18px 60px; max-width:860px; margin:0 auto; line-height:1.5;
+    padding:28px 18px 60px; max-width:860px; margin:0 auto; line-height:1.5; min-height:100vh;
   }
   .head{border-bottom:1px solid var(--border); padding-bottom:18px; margin-bottom:8px}
   .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.32em; color:var(--amber); text-transform:uppercase}
@@ -101,12 +108,13 @@
   .modal-help a{color:var(--cyan)}
   .modal-help code{background:#0a0e13; border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:11px; color:var(--amber)}
 </style>
-
+</head>
+<body>
 <div id="fe-app">
   <div class="head">
     <div class="kicker">NCEES · Fundamentals of Engineering</div>
     <div class="title">FE Chemical — 10-Week Protocol</div>
-    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Enable cloud sync to pick up your progress on any device.</div>
+    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Progress saves in this browser.</div>
   </div>
 
   <div class="gauge-wrap">
@@ -173,9 +181,9 @@ import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstat
 const PLAN = [
   {id:"SETUP", dates:"this week · Jun 4–8", hrs:"~5 hrs", focus:"Setup & diagnostic", tasks:[
     "Create MyNCEES account and register for FE Chemical",
-    "Schedule the exam at a Pearson VUE center for the week of ~Aug 17",
+    "Schedule the exam at a Pearson VUE center (booked: Aug 24)",
     "Buy the official NCEES FE Chemical Practice Exam",
-    "Get a review/problem book (PPI FE Chemical Review or Wasim Asghar's FE Chemical)",
+    "Get the PPI FE Chemical Review Manual (theory) + FE Chemical Practice Problems by Lindeburg (drills)",
     "Order an NCEES-approved calculator (e.g., TI-36X Pro or Casio fx-115ES Plus)",
     "Download the NCEES FE Reference Handbook from MyNCEES; skim its layout",
     "Take one timed diagnostic set to find your weakest areas",
@@ -280,7 +288,6 @@ function defaultStatus(){
 
 function render(){
   const wrap=el("phases"); wrap.innerHTML="";
-  // pick first incomplete phase to auto-open
   let autoIdx=PLAN.findIndex(p=>phaseDone(p)<p.tasks.length);
   if(autoIdx<0) autoIdx=PLAN.length-1;
 
@@ -331,49 +338,12 @@ function updateGauge(){
   el("fill").style.width=pct+"%";
 }
 
-/* ---------- local cache ---------- */
-function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(state)); }catch(e){} }
-function loadCache(){ try{ const r=localStorage.getItem(CACHE_KEY); if(r) return JSON.parse(r)||{}; }catch(e){} return {}; }
-
-/* ---------- save (cache + debounced cloud write) ---------- */
 function save(){
-  saveCache();
-  if(!docRef){ defaultStatus(); return; }
-  setStatus("saving…");
-  if(saveTimer) clearTimeout(saveTimer);
-  const snapshot=JSON.stringify(state);
-  saveTimer=setTimeout(async()=>{
-    try{
-      await setDoc(docRef,{ state:JSON.parse(snapshot), updated:Date.now() });
-      defaultStatus();
-    }catch(e){ setStatus("cloud save failed — kept locally"); }
-  },400);
-}
-
-/* ---------- Firebase connect ---------- */
-function parseConfig(text){
-  const t=(text||"").trim();
-  const a=t.indexOf("{"), b=t.lastIndexOf("}");
-  if(a<0||b<=a) throw new Error("Couldn't find a config object in that text.");
-  let obj;
-  try{ obj=new Function("return ("+t.slice(a,b+1)+")")(); }
-  catch(e){ throw new Error("That config isn't valid — paste the whole snippet from Firebase."); }
-  if(!obj||!obj.apiKey||!obj.projectId) throw new Error("Config is missing apiKey / projectId.");
-  return obj;
-}
-
-async function connect(config, code){
-  if(unsub){ unsub(); unsub=null; }
-  const app=initializeApp(config, "fe-"+Date.now()); // unique name allows re-connect
-  db=getFirestore(app);
-  docRef=doc(db,"trackers",code);
-
-  const snap=await getDoc(docRef);
-  if(snap.exists() && snap.data() && snap.data().state){
-    state=snap.data().state; saveCache(); render();
-  }else{
-    // first time on this code — seed it with whatever we have locally
-    await setDoc(docRef,{ state, updated:Date.now() });
+  try{
+    localStorage.setItem(KEY, JSON.stringify(state));
+    el("sync").innerHTML="status: <b>saved ✓</b>";
+  }catch(e){
+    el("sync").innerHTML="status: <b>save failed — check browser settings</b>";
   }
 
   // live cross-device updates
@@ -387,14 +357,12 @@ async function connect(config, code){
   defaultStatus();
 }
 
-/* ---------- modal wiring ---------- */
-const modal=el("cloud-modal");
-function openModal(){
-  const cfg=localStorage.getItem(CFG_KEY), code=localStorage.getItem(CODE_KEY);
-  if(cfg) el("cfg-input").value=cfg;
-  if(code) el("code-input").value=code;
-  el("modal-msg").textContent=""; el("modal-msg").className="modal-msg";
-  modal.classList.add("show");
+function load(){
+  try{
+    const v=localStorage.getItem(KEY);
+    if(v) state=JSON.parse(v);
+  }catch(e){ state={}; }
+  el("sync").innerHTML="status: <b>saved locally ✓</b>";
 }
 function closeModal(){ modal.classList.remove("show"); }
 
@@ -403,48 +371,16 @@ el("cfg-cancel").addEventListener("click",closeModal);
 modal.addEventListener("click",(e)=>{ if(e.target===modal) closeModal(); });
 document.addEventListener("click",(e)=>{ if(e.target&&e.target.id==="enable-sync") openModal(); });
 
-el("cfg-save").addEventListener("click",async()=>{
-  const msg=el("modal-msg"), btn=el("cfg-save");
-  try{
-    const cfg=parseConfig(el("cfg-input").value);
-    const code=el("code-input").value.trim();
-    if(code.length<6) throw new Error("Use a sync code of at least 6 characters.");
-    msg.className="modal-msg"; msg.textContent="Connecting…"; btn.disabled=true;
-    await connect(cfg, code);
-    localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); // re-serialize cleanly
-    localStorage.setItem(CODE_KEY, code);
-    msg.className="modal-msg ok"; msg.textContent="Connected ✓ Your progress now syncs across devices.";
-    setTimeout(closeModal,1000);
-  }catch(e){
-    msg.className="modal-msg err"; msg.textContent="⚠ "+(e.message||"Connection failed.");
-  }finally{ btn.disabled=false; }
-});
-
-el("cfg-disconnect").addEventListener("click",()=>{
-  if(unsub){ unsub(); unsub=null; }
-  db=null; docRef=null;
-  localStorage.removeItem(CFG_KEY); localStorage.removeItem(CODE_KEY);
-  defaultStatus(); closeModal();
-});
-
-/* ---------- reset ---------- */
-el("reset").addEventListener("click",async()=>{
+el("reset").addEventListener("click",()=>{
   if(!confirm("Clear all checked tasks? This can't be undone.")) return;
-  state={}; saveCache(); render();
-  if(docRef){ try{ await setDoc(docRef,{ state:{}, updated:Date.now() }); }catch(e){} }
-  setStatus(docRef?'reset ✓ <span style="color:var(--cyan)">(synced)</span>':"reset ✓");
+  state={};
+  try{ localStorage.removeItem(KEY);}catch(e){}
+  render();
+  el("sync").innerHTML="status: <b>reset ✓</b>";
 });
 
-/* ---------- startup ---------- */
-(async()=>{
-  state=loadCache();
-  render();
-  const cfgRaw=localStorage.getItem(CFG_KEY), code=localStorage.getItem(CODE_KEY);
-  if(cfgRaw && code){
-    try{ await connect(JSON.parse(cfgRaw), code); }
-    catch(e){ setStatus('cloud offline — using local · <span class="link" id="enable-sync">fix</span>'); }
-  }else{
-    defaultStatus();
-  }
-})();
+load();
+render();
 </script>
+</body>
+</html>
