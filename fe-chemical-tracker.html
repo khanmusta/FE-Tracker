@@ -1,0 +1,285 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b24; --panel2:#1b222d; --border:#2a323e;
+    --ink:#e9e6df; --muted:#8b94a2; --faint:#5b6472;
+    --amber:#ffb454; --amber-dim:#7a5a2a; --cyan:#5ad1c5; --green:#5fd07a;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --sans:'IBM Plex Sans',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  #fe-app{
+    font-family:var(--sans); color:var(--ink);
+    background:
+      linear-gradient(var(--bg),var(--bg)),
+      repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(255,255,255,.018) 31px,rgba(255,255,255,.018) 32px),
+      repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(255,255,255,.018) 31px,rgba(255,255,255,.018) 32px);
+    background-color:var(--bg);
+    padding:28px 18px 60px; max-width:860px; margin:0 auto; line-height:1.5;
+  }
+  .head{border-bottom:1px solid var(--border); padding-bottom:18px; margin-bottom:8px}
+  .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.32em; color:var(--amber); text-transform:uppercase}
+  .title{font-family:var(--mono); font-weight:700; font-size:clamp(26px,5.5vw,40px); letter-spacing:-.01em; margin:8px 0 4px; line-height:1.05}
+  .sub{color:var(--muted); font-size:14px; max-width:560px}
+
+  .gauge-wrap{margin:22px 0 8px; padding:16px 18px; background:var(--panel); border:1px solid var(--border); border-radius:10px}
+  .gauge-top{display:flex; justify-content:space-between; align-items:baseline; font-family:var(--mono); margin-bottom:10px}
+  .gauge-top .pct{font-size:30px; font-weight:700; color:var(--amber)}
+  .gauge-top .lbl{font-size:11px; letter-spacing:.2em; color:var(--muted); text-transform:uppercase}
+  .gauge-top .count{font-size:12px; color:var(--muted)}
+  .bar{height:12px; background:#0a0e13; border:1px solid var(--border); border-radius:99px; overflow:hidden; position:relative}
+  .fill{height:100%; width:0; background:linear-gradient(90deg,var(--amber-dim),var(--amber)); transition:width .5s cubic-bezier(.2,.7,.3,1); border-radius:99px}
+  .sync{font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.15em; margin-top:8px; text-transform:uppercase}
+  .sync b{color:var(--cyan)}
+
+  .reminders{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 26px}
+  .chip{font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:6px 10px; background:var(--panel)}
+  .chip b{color:var(--cyan); font-weight:600}
+
+  .phase{border:1px solid var(--border); border-radius:10px; margin-bottom:12px; background:var(--panel); overflow:hidden}
+  .phase.done{border-color:var(--amber-dim)}
+  .ph-head{display:flex; align-items:center; gap:14px; padding:15px 16px; cursor:pointer; user-select:none}
+  .ph-head:hover{background:var(--panel2)}
+  .ph-id{font-family:var(--mono); font-size:11px; font-weight:700; color:var(--bg); background:var(--muted); border-radius:5px; padding:4px 8px; min-width:62px; text-align:center; letter-spacing:.05em; transition:background .3s}
+  .phase.done .ph-id{background:var(--amber)}
+  .phase.active .ph-id{background:var(--cyan)}
+  .ph-main{flex:1; min-width:0}
+  .ph-focus{font-weight:600; font-size:15px}
+  .ph-meta{font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px}
+  .ph-meta .dot{color:var(--faint); margin:0 7px}
+  .ph-right{display:flex; align-items:center; gap:12px; flex-shrink:0}
+  .ring{font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap}
+  .ring b{color:var(--amber)}
+  .caret{color:var(--faint); transition:transform .25s; font-size:13px}
+  .phase.open .caret{transform:rotate(90deg)}
+
+  .ph-body{max-height:0; overflow:hidden; transition:max-height .35s ease}
+  .ph-inner{padding:4px 16px 16px}
+  .task{display:flex; gap:12px; padding:10px 0; border-top:1px dashed rgba(255,255,255,.07); align-items:flex-start}
+  .task:first-child{border-top:none}
+  .cb{flex-shrink:0; width:20px; height:20px; margin-top:1px; border:1.5px solid var(--faint); border-radius:5px; cursor:pointer; position:relative; background:#0a0e13; transition:all .18s}
+  .cb:hover{border-color:var(--amber)}
+  .cb.on{background:var(--amber); border-color:var(--amber)}
+  .cb.on::after{content:"✓"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#10131a; font-size:13px; font-weight:800}
+  .task-txt{font-size:14px; cursor:pointer; flex:1}
+  .task.on .task-txt{color:var(--faint); text-decoration:line-through; text-decoration-color:var(--amber-dim)}
+
+  .foot{margin-top:26px; display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap}
+  .note{font-family:var(--mono); font-size:11px; color:var(--faint); max-width:520px}
+  .reset{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); background:transparent; border:1px solid var(--border); border-radius:6px; padding:8px 14px; cursor:pointer; transition:all .2s}
+  .reset:hover{color:var(--amber); border-color:var(--amber-dim)}
+</style>
+
+<div id="fe-app">
+  <div class="head">
+    <div class="kicker">NCEES · Fundamentals of Engineering</div>
+    <div class="title">FE Chemical — 10-Week Protocol</div>
+    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Progress saves automatically.</div>
+  </div>
+
+  <div class="gauge-wrap">
+    <div class="gauge-top">
+      <div><span class="pct" id="pct">0%</span> <span class="lbl">complete</span></div>
+      <div class="count" id="count">0 / 0 tasks</div>
+    </div>
+    <div class="bar"><div class="fill" id="fill"></div></div>
+    <div class="sync" id="sync">status: <b>loading…</b></div>
+  </div>
+
+  <div class="reminders">
+    <div class="chip">📖 <b>Handbook open</b> for every problem</div>
+    <div class="chip">📝 Keep an <b>error log</b></div>
+    <div class="chip">⏱ Pace ≈ <b>2.9 min</b> / question</div>
+    <div class="chip">🧮 Practice on your <b>approved calculator</b> only</div>
+  </div>
+
+  <div id="phases"></div>
+
+  <div class="foot">
+    <div class="note">Tip: re-do every missed problem from your error log in the final week — it beats fresh problems for last-stretch gains. Bring a valid government ID + approved calculator on test day.</div>
+    <button class="reset" id="reset">Reset all</button>
+  </div>
+</div>
+
+<script>
+const PLAN = [
+  {id:"SETUP", dates:"this week · Jun 4–8", hrs:"~5 hrs", focus:"Setup & diagnostic", tasks:[
+    "Create MyNCEES account and register for FE Chemical",
+    "Schedule the exam at a Pearson VUE center for the week of ~Aug 17",
+    "Buy the official NCEES FE Chemical Practice Exam",
+    "Get a review/problem book (PPI FE Chemical Review or Wasim Asghar's FE Chemical)",
+    "Order an NCEES-approved calculator (e.g., TI-36X Pro or Casio fx-115ES Plus)",
+    "Download the NCEES FE Reference Handbook from MyNCEES; skim its layout",
+    "Take one timed diagnostic set to find your weakest areas",
+  ]},
+  {id:"WEEK 1", dates:"Jun 9–15", hrs:"~20 hrs", focus:"Math · Probability/Stats · Comp Tools · Engineering Economics", tasks:[
+    "Review algebra, trig, calculus (derivatives/integrals), basic ODEs, matrices",
+    "Review probability distributions, mean/variance, confidence intervals, regression",
+    "Review engineering economics: time value of money, NPV, rate of return, depreciation",
+    "Solve 60+ mixed problems with the handbook open",
+    "Locate every relevant formula/table in the Reference Handbook",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 2", dates:"Jun 16–22", hrs:"~20 hrs", focus:"Chemistry · Materials Science", tasks:[
+    "General chem: stoichiometry, acids/bases/pH, redox, equilibrium, kinetics basics",
+    "Organic chemistry basics and nomenclature",
+    "Materials science: properties, phase diagrams, corrosion",
+    "Solve 50+ problems with the handbook open",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 3", dates:"Jun 23–29", hrs:"~20 hrs", focus:"Material & Energy Balances (core)", tasks:[
+    "Mass balances with/without reaction; recycle, purge, bypass",
+    "Energy balances, enthalpy, heats of reaction",
+    "Combustion and basic psychrometrics",
+    "Solve 60+ problems — this is a high-weight area, go heavy",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 4", dates:"Jun 30–Jul 6", hrs:"~20 hrs", focus:"Thermodynamics", tasks:[
+    "1st and 2nd law, properties, steam tables",
+    "Phase equilibria, VLE, Raoult's and Henry's law",
+    "Power/refrigeration cycles, entropy, fugacity basics",
+    "Solve 60+ problems with the handbook open",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 5", dates:"Jul 7–13", hrs:"~20 hrs", focus:"Fluid Mechanics", tasks:[
+    "Fluid statics, Bernoulli, friction losses (Moody chart), pump curves",
+    "Flow measurement, compressible-flow and non-Newtonian basics",
+    "Solve 50+ problems with the handbook open",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 6", dates:"Jul 14–20", hrs:"~20 hrs", focus:"Heat Transfer", tasks:[
+    "Conduction, convection, radiation fundamentals",
+    "Heat exchangers (LMTD and NTU methods), fins",
+    "Solve 50+ problems with the handbook open",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 7", dates:"Jul 21–27", hrs:"~20 hrs", focus:"Mass Transfer & Separations", tasks:[
+    "Diffusion fundamentals; distillation (McCabe–Thiele)",
+    "Absorption, extraction, humidification, membrane basics",
+    "Solve 50+ problems with the handbook open",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 8", dates:"Jul 28–Aug 3", hrs:"~20 hrs", focus:"Reaction Engineering · Process Control", tasks:[
+    "Rate laws, kinetics; reactor design (batch, CSTR, PFR)",
+    "Conversion, selectivity, catalysis basics",
+    "Process control: feedback loops, P/PI/PID, sensors and valves, dynamics",
+    "Solve 55+ problems with the handbook open",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 9", dates:"Aug 4–10", hrs:"~20 hrs", focus:"Process Design/Economics · Safety/Env · Ethics · Weak-area cleanup", tasks:[
+    "Process design, equipment sizing, P&IDs, cost estimation",
+    "Safety/health/environment: SDS, hazards, toxicology and regs basics",
+    "Ethics & professional practice — lock these down (easy points)",
+    "Revisit your two weakest topics from the error log",
+    "Solve a 60+ mixed-topic problem set",
+    "Timed mini-quiz: 15 questions in 45 min",
+  ]},
+  {id:"WEEK 10", dates:"Aug 11–17", hrs:"~20 hrs", focus:"First full mock · Targeted review", tasks:[
+    "Full-length timed mock #1 (non-NCEES bank); review every miss",
+    "Handbook navigation drills — speed-find formulas under time",
+    "Re-work your weakest topics from the error log",
+    "Mixed-topic timed set: 30+ questions",
+  ]},
+  {id:"WEEK 11", dates:"Aug 18–24", hrs:"~18 hrs", focus:"Official mock · Taper · EXAM Aug 24", tasks:[
+    "Full-length official NCEES FE Chemical Practice Exam at real timing (do this early in the week)",
+    "Final error-log review; quick ethics + econ refresh",
+    "Light taper: shorter, low-intensity review the last 1–2 days — do not cram",
+    "Logistics check: ID, approved calculator, test-center route, arrive-early plan",
+    "🎯 TEST DAY · Aug 24 — bring approved calculator + valid government ID",
+  ]},
+];
+
+const KEY="fe_chem_tracker_v1";
+let state={};
+
+const el=(id)=>document.getElementById(id);
+const tid=(p,i)=>`${p}__${i}`;
+
+function totalTasks(){return PLAN.reduce((n,p)=>n+p.tasks.length,0);}
+function doneCount(){return Object.values(state).filter(Boolean).length;}
+function phaseDone(p){return p.tasks.filter((_,i)=>state[tid(p.id,i)]).length;}
+
+function render(){
+  const wrap=el("phases"); wrap.innerHTML="";
+  // pick first incomplete phase to auto-open
+  let autoIdx=PLAN.findIndex(p=>phaseDone(p)<p.tasks.length);
+  if(autoIdx<0) autoIdx=PLAN.length-1;
+
+  PLAN.forEach((p,pi)=>{
+    const dn=phaseDone(p), tot=p.tasks.length, complete=dn===tot;
+    const open=pi===autoIdx;
+    const div=document.createElement("div");
+    div.className="phase"+(complete?" done":"")+(pi===autoIdx&&!complete?" active":"")+(open?" open":"");
+    div.innerHTML=`
+      <div class="ph-head">
+        <div class="ph-id">${p.id}</div>
+        <div class="ph-main">
+          <div class="ph-focus">${p.focus}</div>
+          <div class="ph-meta">${p.dates}<span class="dot">·</span>${p.hrs}</div>
+        </div>
+        <div class="ph-right">
+          <div class="ring"><b>${dn}</b>/${tot}</div>
+          <div class="caret">▶</div>
+        </div>
+      </div>
+      <div class="ph-body"><div class="ph-inner">
+        ${p.tasks.map((t,i)=>{const on=!!state[tid(p.id,i)];return `
+          <div class="task${on?" on":""}" data-t="${tid(p.id,i)}">
+            <div class="cb${on?" on":""}"></div>
+            <div class="task-txt">${t}</div>
+          </div>`;}).join("")}
+      </div></div>`;
+    wrap.appendChild(div);
+
+    const body=div.querySelector(".ph-body");
+    const setH=()=>{body.style.maxHeight=div.classList.contains("open")?body.scrollHeight+"px":"0";};
+    setH();
+    div.querySelector(".ph-head").addEventListener("click",()=>{div.classList.toggle("open");setH();});
+    div.querySelectorAll(".task").forEach(row=>{
+      row.addEventListener("click",()=>{
+        const k=row.dataset.t; state[k]=!state[k];
+        save(); render();
+      });
+    });
+  });
+  updateGauge();
+}
+
+function updateGauge(){
+  const tot=totalTasks(), dn=doneCount(), pct=tot?Math.round(dn/tot*100):0;
+  el("pct").textContent=pct+"%";
+  el("count").textContent=`${dn} / ${tot} tasks`;
+  el("fill").style.width=pct+"%";
+}
+
+async function save(){
+  try{
+    el("sync").innerHTML="status: <b>saving…</b>";
+    await window.storage.set(KEY, JSON.stringify(state), false);
+    el("sync").innerHTML="status: <b>saved ✓</b>";
+  }catch(e){
+    el("sync").innerHTML="status: <b>save failed — progress kept for this session</b>";
+  }
+}
+
+async function load(){
+  try{
+    const r=await window.storage.get(KEY,false);
+    if(r&&r.value) state=JSON.parse(r.value);
+  }catch(e){ state={}; }
+  el("sync").innerHTML="status: <b>synced ✓</b>";
+}
+
+el("reset").addEventListener("click",async()=>{
+  if(!confirm("Clear all checked tasks? This can't be undone.")) return;
+  state={};
+  try{ await window.storage.delete(KEY,false);}catch(e){}
+  render();
+  el("sync").innerHTML="status: <b>reset ✓</b>";
+});
+
+(async()=>{ await load(); render(); })();
+</script>
