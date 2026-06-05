@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FE Chemical — 10-Week Protocol</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -11,6 +17,7 @@
     --sans:'IBM Plex Sans',system-ui,sans-serif;
   }
   *{box-sizing:border-box}
+  html,body{margin:0; background:#0d1117}
   #fe-app{
     font-family:var(--sans); color:var(--ink);
     background:
@@ -18,7 +25,7 @@
       repeating-linear-gradient(0deg,transparent,transparent 31px,rgba(255,255,255,.018) 31px,rgba(255,255,255,.018) 32px),
       repeating-linear-gradient(90deg,transparent,transparent 31px,rgba(255,255,255,.018) 31px,rgba(255,255,255,.018) 32px);
     background-color:var(--bg);
-    padding:28px 18px 60px; max-width:860px; margin:0 auto; line-height:1.5;
+    padding:28px 18px 60px; max-width:860px; margin:0 auto; line-height:1.5; min-height:100vh;
   }
   .head{border-bottom:1px solid var(--border); padding-bottom:18px; margin-bottom:8px}
   .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.32em; color:var(--amber); text-transform:uppercase}
@@ -72,12 +79,13 @@
   .reset{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); background:transparent; border:1px solid var(--border); border-radius:6px; padding:8px 14px; cursor:pointer; transition:all .2s}
   .reset:hover{color:var(--amber); border-color:var(--amber-dim)}
 </style>
-
+</head>
+<body>
 <div id="fe-app">
   <div class="head">
     <div class="kicker">NCEES · Fundamentals of Engineering</div>
     <div class="title">FE Chemical — 10-Week Protocol</div>
-    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Progress saves automatically.</div>
+    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Progress saves in this browser.</div>
   </div>
 
   <div class="gauge-wrap">
@@ -108,9 +116,9 @@
 const PLAN = [
   {id:"SETUP", dates:"this week · Jun 4–8", hrs:"~5 hrs", focus:"Setup & diagnostic", tasks:[
     "Create MyNCEES account and register for FE Chemical",
-    "Schedule the exam at a Pearson VUE center for the week of ~Aug 17",
+    "Schedule the exam at a Pearson VUE center (booked: Aug 24)",
     "Buy the official NCEES FE Chemical Practice Exam",
-    "Get a review/problem book (PPI FE Chemical Review or Wasim Asghar's FE Chemical)",
+    "Get the PPI FE Chemical Review Manual (theory) + FE Chemical Practice Problems by Lindeburg (drills)",
     "Order an NCEES-approved calculator (e.g., TI-36X Pro or Casio fx-115ES Plus)",
     "Download the NCEES FE Reference Handbook from MyNCEES; skim its layout",
     "Take one timed diagnostic set to find your weakest areas",
@@ -204,7 +212,6 @@ function phaseDone(p){return p.tasks.filter((_,i)=>state[tid(p.id,i)]).length;}
 
 function render(){
   const wrap=el("phases"); wrap.innerHTML="";
-  // pick first incomplete phase to auto-open
   let autoIdx=PLAN.findIndex(p=>phaseDone(p)<p.tasks.length);
   if(autoIdx<0) autoIdx=PLAN.length-1;
 
@@ -255,31 +262,33 @@ function updateGauge(){
   el("fill").style.width=pct+"%";
 }
 
-async function save(){
+function save(){
   try{
-    el("sync").innerHTML="status: <b>saving…</b>";
-    await window.storage.set(KEY, JSON.stringify(state), false);
+    localStorage.setItem(KEY, JSON.stringify(state));
     el("sync").innerHTML="status: <b>saved ✓</b>";
   }catch(e){
-    el("sync").innerHTML="status: <b>save failed — progress kept for this session</b>";
+    el("sync").innerHTML="status: <b>save failed — check browser settings</b>";
   }
 }
 
-async function load(){
+function load(){
   try{
-    const r=await window.storage.get(KEY,false);
-    if(r&&r.value) state=JSON.parse(r.value);
+    const v=localStorage.getItem(KEY);
+    if(v) state=JSON.parse(v);
   }catch(e){ state={}; }
-  el("sync").innerHTML="status: <b>synced ✓</b>";
+  el("sync").innerHTML="status: <b>saved locally ✓</b>";
 }
 
-el("reset").addEventListener("click",async()=>{
+el("reset").addEventListener("click",()=>{
   if(!confirm("Clear all checked tasks? This can't be undone.")) return;
   state={};
-  try{ await window.storage.delete(KEY,false);}catch(e){}
+  try{ localStorage.removeItem(KEY);}catch(e){}
   render();
   el("sync").innerHTML="status: <b>reset ✓</b>";
 });
 
-(async()=>{ await load(); render(); })();
+load();
+render();
 </script>
+</body>
+</html>
