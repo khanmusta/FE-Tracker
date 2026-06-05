@@ -34,6 +34,7 @@
   .fill{height:100%; width:0; background:linear-gradient(90deg,var(--amber-dim),var(--amber)); transition:width .5s cubic-bezier(.2,.7,.3,1); border-radius:99px}
   .sync{font-family:var(--mono); font-size:10px; color:var(--faint); letter-spacing:.15em; margin-top:8px; text-transform:uppercase}
   .sync b{color:var(--cyan)}
+  .sync .link{color:var(--amber); cursor:pointer; text-decoration:underline; text-underline-offset:2px}
 
   .reminders{display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 26px}
   .chip{font-family:var(--mono); font-size:11px; color:var(--muted); border:1px solid var(--border); border-radius:6px; padding:6px 10px; background:var(--panel)}
@@ -69,15 +70,43 @@
 
   .foot{margin-top:26px; display:flex; justify-content:space-between; align-items:center; gap:14px; flex-wrap:wrap}
   .note{font-family:var(--mono); font-size:11px; color:var(--faint); max-width:520px}
+  .foot-btns{display:flex; gap:10px}
   .reset{font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); background:transparent; border:1px solid var(--border); border-radius:6px; padding:8px 14px; cursor:pointer; transition:all .2s}
   .reset:hover{color:var(--amber); border-color:var(--amber-dim)}
+  .reset.cloud:hover{color:var(--cyan); border-color:var(--cyan)}
+
+  /* cloud sync modal */
+  .modal-bg{position:fixed; inset:0; background:rgba(2,5,9,.72); backdrop-filter:blur(3px); display:none; align-items:center; justify-content:center; padding:20px; z-index:50}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--panel); border:1px solid var(--border); border-radius:12px; max-width:500px; width:100%; padding:24px; font-family:var(--sans); max-height:90vh; overflow:auto}
+  .modal-title{font-family:var(--mono); font-weight:700; font-size:18px; color:var(--ink); margin-bottom:6px}
+  .modal-desc{color:var(--muted); font-size:13px; margin:0 0 6px}
+  .modal label{display:block; font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:16px 0 6px}
+  .modal textarea,.modal input{width:100%; background:#0a0e13; border:1px solid var(--border); border-radius:8px; color:var(--ink); font-family:var(--mono); font-size:12px; padding:10px; outline:none}
+  .modal textarea:focus,.modal input:focus{border-color:var(--cyan)}
+  .modal textarea{height:128px; resize:vertical; line-height:1.45}
+  .field-hint{font-family:var(--mono); font-size:10px; color:var(--faint); margin-top:5px}
+  .modal-msg{font-family:var(--mono); font-size:12px; min-height:18px; margin-top:14px; color:var(--muted)}
+  .modal-msg.ok{color:var(--green)}
+  .modal-msg.err{color:#ff7a7a}
+  .modal-actions{display:flex; justify-content:flex-end; gap:10px; margin-top:18px; flex-wrap:wrap}
+  .btn-ghost,.btn-primary{font-family:var(--mono); font-size:12px; padding:9px 16px; border-radius:7px; cursor:pointer; border:1px solid var(--border); letter-spacing:.05em}
+  .btn-ghost{background:transparent; color:var(--muted)}
+  .btn-ghost:hover{color:var(--ink); border-color:var(--faint)}
+  .btn-ghost.danger:hover{color:#ff7a7a; border-color:#7a2a2a}
+  .btn-primary{background:var(--amber); color:#10131a; border-color:var(--amber); font-weight:700}
+  .btn-primary:hover{filter:brightness(1.08)}
+  .btn-primary:disabled{opacity:.5; cursor:default}
+  .modal-help{font-size:12px; color:var(--faint); margin-top:18px; padding-top:14px; border-top:1px solid var(--border); line-height:1.6}
+  .modal-help a{color:var(--cyan)}
+  .modal-help code{background:#0a0e13; border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:11px; color:var(--amber)}
 </style>
 
 <div id="fe-app">
   <div class="head">
     <div class="kicker">NCEES · Fundamentals of Engineering</div>
     <div class="title">FE Chemical — 10-Week Protocol</div>
-    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Progress saves automatically.</div>
+    <div class="sub">~20 hrs/week · exam booked for Aug 24. Open a phase, work the tasks, check them off. Enable cloud sync to pick up your progress on any device.</div>
   </div>
 
   <div class="gauge-wrap">
@@ -100,11 +129,47 @@
 
   <div class="foot">
     <div class="note">Tip: re-do every missed problem from your error log in the final week — it beats fresh problems for last-stretch gains. Bring a valid government ID + approved calculator on test day.</div>
-    <button class="reset" id="reset">Reset all</button>
+    <div class="foot-btns">
+      <button class="reset cloud" id="cloud-btn">☁ Cloud sync</button>
+      <button class="reset" id="reset">Reset all</button>
+    </div>
   </div>
 </div>
 
-<script>
+<!-- Cloud sync setup modal -->
+<div class="modal-bg" id="cloud-modal">
+  <div class="modal">
+    <div class="modal-title">☁ Cloud Sync</div>
+    <p class="modal-desc">Sync your progress across machines with a free Firebase project. Enter the same config and sync code on every device.</p>
+
+    <label for="cfg-input">Firebase config</label>
+    <textarea id="cfg-input" spellcheck="false" placeholder="const firebaseConfig = {&#10;  apiKey: &quot;...&quot;,&#10;  projectId: &quot;...&quot;,&#10;  ...&#10;};"></textarea>
+    <div class="field-hint">Paste the snippet from Firebase console → Project settings → Your apps (Web).</div>
+
+    <label for="code-input">Sync code — your private key</label>
+    <input id="code-input" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. khan-fe-2026-7x9q2k" />
+    <div class="field-hint">Anyone with this code + config can read your progress. Make it long and unguessable. Use the exact same code on each device.</div>
+
+    <div class="modal-msg" id="modal-msg"></div>
+
+    <div class="modal-actions">
+      <button class="btn-ghost danger" id="cfg-disconnect">Disconnect</button>
+      <button class="btn-ghost" id="cfg-cancel">Cancel</button>
+      <button class="btn-primary" id="cfg-save">Connect &amp; Sync</button>
+    </div>
+
+    <div class="modal-help">
+      <b>One-time setup:</b> create a project at <a href="https://console.firebase.google.com" target="_blank" rel="noopener">console.firebase.google.com</a>, add a Web app, and enable <b>Firestore Database</b>. Set its rules to allow your <code>trackers</code> collection:
+      <br><br>
+      <code>match /trackers/{code} { allow read, write: if true; }</code>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
 const PLAN = [
   {id:"SETUP", dates:"this week · Jun 4–8", hrs:"~5 hrs", focus:"Setup & diagnostic", tasks:[
     "Create MyNCEES account and register for FE Chemical",
@@ -192,8 +257,13 @@ const PLAN = [
   ]},
 ];
 
-const KEY="fe_chem_tracker_v1";
+const CACHE_KEY="fe_chem_tracker_v1";   // local cache (also offline fallback)
+const CFG_KEY="fe_fb_config";           // saved Firebase config (per device)
+const CODE_KEY="fe_sync_code";          // saved sync code (per device)
+
 let state={};
+let db=null, docRef=null, unsub=null;
+let saveTimer=null;
 
 const el=(id)=>document.getElementById(id);
 const tid=(p,i)=>`${p}__${i}`;
@@ -201,6 +271,12 @@ const tid=(p,i)=>`${p}__${i}`;
 function totalTasks(){return PLAN.reduce((n,p)=>n+p.tasks.length,0);}
 function doneCount(){return Object.values(state).filter(Boolean).length;}
 function phaseDone(p){return p.tasks.filter((_,i)=>state[tid(p.id,i)]).length;}
+
+function setStatus(html){ el("sync").innerHTML="status: <b>"+html+"</b>"; }
+function defaultStatus(){
+  if(docRef) setStatus('cloud synced <span style="color:var(--cyan)">✓</span>');
+  else setStatus('local only · <span class="link" id="enable-sync">enable cloud sync</span>');
+}
 
 function render(){
   const wrap=el("phases"); wrap.innerHTML="";
@@ -255,31 +331,120 @@ function updateGauge(){
   el("fill").style.width=pct+"%";
 }
 
-async function save(){
-  try{
-    el("sync").innerHTML="status: <b>saving…</b>";
-    await window.storage.set(KEY, JSON.stringify(state), false);
-    el("sync").innerHTML="status: <b>saved ✓</b>";
-  }catch(e){
-    el("sync").innerHTML="status: <b>save failed — progress kept for this session</b>";
+/* ---------- local cache ---------- */
+function saveCache(){ try{ localStorage.setItem(CACHE_KEY, JSON.stringify(state)); }catch(e){} }
+function loadCache(){ try{ const r=localStorage.getItem(CACHE_KEY); if(r) return JSON.parse(r)||{}; }catch(e){} return {}; }
+
+/* ---------- save (cache + debounced cloud write) ---------- */
+function save(){
+  saveCache();
+  if(!docRef){ defaultStatus(); return; }
+  setStatus("saving…");
+  if(saveTimer) clearTimeout(saveTimer);
+  const snapshot=JSON.stringify(state);
+  saveTimer=setTimeout(async()=>{
+    try{
+      await setDoc(docRef,{ state:JSON.parse(snapshot), updated:Date.now() });
+      defaultStatus();
+    }catch(e){ setStatus("cloud save failed — kept locally"); }
+  },400);
+}
+
+/* ---------- Firebase connect ---------- */
+function parseConfig(text){
+  const t=(text||"").trim();
+  const a=t.indexOf("{"), b=t.lastIndexOf("}");
+  if(a<0||b<=a) throw new Error("Couldn't find a config object in that text.");
+  let obj;
+  try{ obj=new Function("return ("+t.slice(a,b+1)+")")(); }
+  catch(e){ throw new Error("That config isn't valid — paste the whole snippet from Firebase."); }
+  if(!obj||!obj.apiKey||!obj.projectId) throw new Error("Config is missing apiKey / projectId.");
+  return obj;
+}
+
+async function connect(config, code){
+  if(unsub){ unsub(); unsub=null; }
+  const app=initializeApp(config, "fe-"+Date.now()); // unique name allows re-connect
+  db=getFirestore(app);
+  docRef=doc(db,"trackers",code);
+
+  const snap=await getDoc(docRef);
+  if(snap.exists() && snap.data() && snap.data().state){
+    state=snap.data().state; saveCache(); render();
+  }else{
+    // first time on this code — seed it with whatever we have locally
+    await setDoc(docRef,{ state, updated:Date.now() });
   }
+
+  // live cross-device updates
+  unsub=onSnapshot(docRef,(s)=>{
+    if(!s.exists()) return;
+    const incoming=JSON.stringify((s.data()||{}).state||{});
+    if(incoming===JSON.stringify(state)) return; // our own write / no change
+    state=JSON.parse(incoming); saveCache(); render();
+    defaultStatus();
+  });
+  defaultStatus();
 }
 
-async function load(){
+/* ---------- modal wiring ---------- */
+const modal=el("cloud-modal");
+function openModal(){
+  const cfg=localStorage.getItem(CFG_KEY), code=localStorage.getItem(CODE_KEY);
+  if(cfg) el("cfg-input").value=cfg;
+  if(code) el("code-input").value=code;
+  el("modal-msg").textContent=""; el("modal-msg").className="modal-msg";
+  modal.classList.add("show");
+}
+function closeModal(){ modal.classList.remove("show"); }
+
+el("cloud-btn").addEventListener("click",openModal);
+el("cfg-cancel").addEventListener("click",closeModal);
+modal.addEventListener("click",(e)=>{ if(e.target===modal) closeModal(); });
+document.addEventListener("click",(e)=>{ if(e.target&&e.target.id==="enable-sync") openModal(); });
+
+el("cfg-save").addEventListener("click",async()=>{
+  const msg=el("modal-msg"), btn=el("cfg-save");
   try{
-    const r=await window.storage.get(KEY,false);
-    if(r&&r.value) state=JSON.parse(r.value);
-  }catch(e){ state={}; }
-  el("sync").innerHTML="status: <b>synced ✓</b>";
-}
-
-el("reset").addEventListener("click",async()=>{
-  if(!confirm("Clear all checked tasks? This can't be undone.")) return;
-  state={};
-  try{ await window.storage.delete(KEY,false);}catch(e){}
-  render();
-  el("sync").innerHTML="status: <b>reset ✓</b>";
+    const cfg=parseConfig(el("cfg-input").value);
+    const code=el("code-input").value.trim();
+    if(code.length<6) throw new Error("Use a sync code of at least 6 characters.");
+    msg.className="modal-msg"; msg.textContent="Connecting…"; btn.disabled=true;
+    await connect(cfg, code);
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); // re-serialize cleanly
+    localStorage.setItem(CODE_KEY, code);
+    msg.className="modal-msg ok"; msg.textContent="Connected ✓ Your progress now syncs across devices.";
+    setTimeout(closeModal,1000);
+  }catch(e){
+    msg.className="modal-msg err"; msg.textContent="⚠ "+(e.message||"Connection failed.");
+  }finally{ btn.disabled=false; }
 });
 
-(async()=>{ await load(); render(); })();
+el("cfg-disconnect").addEventListener("click",()=>{
+  if(unsub){ unsub(); unsub=null; }
+  db=null; docRef=null;
+  localStorage.removeItem(CFG_KEY); localStorage.removeItem(CODE_KEY);
+  defaultStatus(); closeModal();
+});
+
+/* ---------- reset ---------- */
+el("reset").addEventListener("click",async()=>{
+  if(!confirm("Clear all checked tasks? This can't be undone.")) return;
+  state={}; saveCache(); render();
+  if(docRef){ try{ await setDoc(docRef,{ state:{}, updated:Date.now() }); }catch(e){} }
+  setStatus(docRef?'reset ✓ <span style="color:var(--cyan)">(synced)</span>':"reset ✓");
+});
+
+/* ---------- startup ---------- */
+(async()=>{
+  state=loadCache();
+  render();
+  const cfgRaw=localStorage.getItem(CFG_KEY), code=localStorage.getItem(CODE_KEY);
+  if(cfgRaw && code){
+    try{ await connect(JSON.parse(cfgRaw), code); }
+    catch(e){ setStatus('cloud offline — using local · <span class="link" id="enable-sync">fix</span>'); }
+  }else{
+    defaultStatus();
+  }
+})();
 </script>
